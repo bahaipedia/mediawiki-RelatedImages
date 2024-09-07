@@ -23,7 +23,9 @@
 
 namespace MediaWiki\RelatedImages;
 
+use MediaWiki\MediaWikiServices;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
+use WikitextContent;
 
 /**
  * Hooks of Extension:RelatedImages.
@@ -39,17 +41,61 @@ class Hooks implements ImagePageAfterImageLinksHook {
 	 * @return void
 	 */
 	public function onImagePageAfterImageLinks( $imagePage, &$html ): void {
+		global $wgRelatedImagesIgnoredCategories;
+
 		$title = $imagePage->getTitle();
 
-		// TODO: find all non-hidden categories that have $title in them,
-		// exclude $wgRelatedImagesIgnoredCategories from that array,
-		// fetch wikitext of the page $title,
-		// check wikitext for "which categories were added directly from that page, not via the template",
-		// move directly added categories to the beginning of the array,
-		// randomly choose $wgRelatedImagesCount titles (that are not equal to $title) from the first category,
-		// if less than $wgRelatedImagesCount were found: continue searching in the following categories,
+		// TODO:
 		// set $html to a hidden <div> with the necessary code of RelatedImages,
 		// add JavaScript module that would reposition and unhide this <div>.
+
+		$dbr = MediaWikiServices::getInstance()->getDBLoadBalancer()->getConnection( DB_REPLICA );
+
+		// Find all non-hidden categories that contain the page $title.
+		$categoryNames = $dbr->newSelectQueryBuilder()
+			->select( [ 'cl_to' ] )
+			->from( 'categorylinks' )
+			->leftJoin( 'page', null, [
+				'page_namespace' => NS_CATEGORY,
+				'page_title=cl_to'
+			] )
+			->leftJoin( 'page_props', null, [
+				'pp_propname' => 'hiddencat',
+				'pp_page=page_id',
+			] )
+			->where( [
+				'cl_from' => $title->getArticleID(),
+				'pp_propname IS NULL'
+			] )
+			->caller( __METHOD__ )
+			->fetchFieldValues();
+
+		// Exclude $wgRelatedImagesIgnoredCategories from the list.
+		$categoryNames = array_diff( $categoryNames, $wgRelatedImagesIgnoredCategories );
+
+		// Check wikitext of $title for "which categories were added directly on this page, not via the template".
+		$directlyAdded = []; // [ 'category_name' => true ]
+
+		$content = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromLinkTarget( $title )->getContent();
+		if ( $content && $content instanceof WikitextContent ) {
+			foreach ( $categoryNames as $category ) {
+				// This will likely match [[Category:<name>]] or [[Category:<name>|sortkey]] syntax.
+				// The word "Category" might be translated to another language, so we shouldn't match it.
+				$regex = '/:\s*' . str_replace( ' ', '_', preg_quote( $category, '/' ) ) . '\s*(\||\]\])/';
+
+				if ( preg_match( $regex, $content->getText() ) ) {
+					$directlyAdded[] = $category;
+				}
+			}
+		}
+
+		// Move directly added categories to the beginning of the array of categories.
+		$categoryNames = array_merge(
+			$directlyAdded,
+			array_diff( $categoryNames, $directlyAdded )
+		);
+
+		// Randomly choose up to $wgRelatedImagesCount titles (not equal to $title) from $categoryNames.
 
 
 		$html = 'TODO: add RelatedImages';
