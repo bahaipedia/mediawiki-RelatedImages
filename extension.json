@@ -1,0 +1,39 @@
+{
+	"name": "RelatedImages",
+	"version": "0.0.1",
+	"author": "Edward Chernenko",
+	"url": "https://www.mediawiki.org/wiki/Extension:RelatedImages",
+	"descriptionmsg": "relatedimages-desc",
+	"license-name": "GPL-2.0+",
+	"requires": {
+		"MediaWiki": ">= 1.35.0"
+	},
+	"type": "other",
+	"AutoloadClasses": {
+		"MediaWiki\\RelatedImages\\Hooks": "includes/Hooks.php"
+	},
+	"HookHandlers": {
+		"main": {
+			"class": "MediaWiki\\RelatedImages\\Hooks"
+		}
+	},
+	"Hooks": {
+		"ImagePageAfterImageLinks": "main"
+	},
+	"MessagesDirs": {
+		"RelatedImages": [
+			"i18n"
+		]
+	},
+	"config": {
+		"RelatedImagesCount": {
+                        "value": 3,
+			"description": "How many images to show."
+                },
+                "RelatedImagesIgnoredCategories": {
+			"value": [],
+			"description": "List of categories that are too generic to be useful when searching for related images."
+                }
+	},
+	"manifest_version": 2
+}
