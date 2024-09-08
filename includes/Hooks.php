@@ -191,7 +191,10 @@ class Hooks implements ImagePageAfterImageLinksHook {
 					$this->parser,
 					$file->getTitle(),
 					$file,
-					[ 'thumbnail' ],
+					[
+						'thumbnail',
+						'title' => $file->getTitle()->getPrefixedText()
+					],
 					[
 						'width' => $wgRelatedImagesThumbnailWidth,
 						'height' => $wgRelatedImagesThumbnailHeight
@@ -214,5 +217,4 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		$out->addModuleStyles( [ 'ext.relatedimages.css' ] );
 		$out->addModules( [ 'ext.relatedimages' ] );
 	}
-
 }
