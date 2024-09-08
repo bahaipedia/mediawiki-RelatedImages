@@ -4,8 +4,16 @@
 	padding: 10px;
 }
 
+.mw-related-images img {
+	margin-right: 5px;
+}
+
 #mw-related-images-table {
 	width: 100%;
+}
+
+#mw-related-images-table td {
+	vertical-align: top;
 }
 
 #mw-related-images-wrapper {

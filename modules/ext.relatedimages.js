@@ -11,12 +11,10 @@ if ( matchMedia( '(min-width: 800px)' ).matches ) {
 			return;
 		}
 
-		var $image = $( '#file' );
-
 		var $table = $( '<table/>' )
 			.attr( 'id', 'mw-related-images-table' )
 			.append( $( '<tr/>' ).append(
-				$( '<td/>' ).append( $image ),
+				$( '<td/>' ).append( $( '#file' ) ),
 				$( '<td/>' ).attr( 'id', 'mw-related-images-wrapper' ).append( $widget )
 			) );
 

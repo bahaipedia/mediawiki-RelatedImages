@@ -27,6 +27,7 @@ use Linker;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
 use RequestContext;
+use TitleValue;
 use WikitextContent;
 use Xml;
 
@@ -44,12 +45,19 @@ class Hooks implements ImagePageAfterImageLinksHook {
 	 * @return void
 	 */
 	public function onImagePageAfterImageLinks( $imagePage, &$html ): void {
-		global $wgRelatedImagesIgnoredCategories, $wgRelatedImagesCount;
+		global $wgRelatedImagesIgnoredCategories,
+			$wgRelatedImagesMaxCategories,
+			$wgRelatedImagesMaxImagesPerCategory,
+			$wgRelatedImagesThumbnailWidth,
+			$wgRelatedImagesThumbnailHeight;
 
 		$title = $imagePage->getTitle();
 		$articleID = $title->getArticleID();
 
 		$services = MediaWikiServices::getInstance();
+		$repoGroup = $services->getRepoGroup();
+		$linkRenderer = $services->getLinkRenderer();
+
 		$dbr = $services->getDBLoadBalancer()->getConnection( DB_REPLICA );
 
 		// Find all non-hidden categories that contain the page $title.
@@ -94,14 +102,16 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			}
 		}
 
-		// Randomly choose up to $wgRelatedImagesCount titles (not equal to $title) from $categoryNames.
-		$filenames = [];
-		foreach ( [
-			// Directly added categories are checked first.
-			$directlyAdded,
-			array_diff( $categoryNames, $directlyAdded )
-		] as $categories ) {
-			$moreFilenames = $dbr->newSelectQueryBuilder()
+		$categoryNames = array_merge( $directlyAdded, array_diff( $categoryNames, $directlyAdded ) );
+
+		// Randomly choose up to $wgRelatedImagesMaxImagesPerCategory titles (not equal to $title) from $categoryNames.
+		$filenamesPerCategory = []; # [ 'Category_name' => [ 'filename', ... ], ... ]
+		$seenFilenames = [];
+		foreach ( $categoryNames as $category ) {
+			// Because the number of categories is low, and the number of images in them can very high,
+			// it's preferable to do 1 SQL query per category (limited by $wgRelatedImagesMaxImagesPerCategory)
+			// rather than do only 1 SQL query for all categories, but without the limit.
+			$filenames = $dbr->newSelectQueryBuilder()
 				->select( [ 'DISTINCT page_title' ] )
 				->from( 'categorylinks' )
 				->join( 'page', null, [
@@ -109,49 +119,59 @@ class Hooks implements ImagePageAfterImageLinksHook {
 					'page_namespace' => NS_FILE
 				] )
 				->where( [
-					'cl_to' => $categoryNames,
+					'cl_to' => $category,
 					'cl_from <> ' . $articleID
 				] )
-				->limit( $wgRelatedImagesCount * 2 ) // Fetch 2 times more to avoid insufficient results due to duplicates
+				->limit( $wgRelatedImagesMaxImagesPerCategory )
 				->caller( __METHOD__ )
 				->fetchFieldValues();
 
-			array_push( $filenames, ...$moreFilenames );
+			// Eliminate duplicates (files that have already been found in previous categories).
+			$filenames = array_diff( $filenames, $seenFilenames );
+			array_push( $seenFilenames, ...$filenames );
 
-			if ( count( $moreFilenames ) >= $wgRelatedImagesCount ) {
+			$filenamesPerCategory[$category] = $filenames;
+		}
+
+		// Generate HTML of RelatedImages widget.
+		$parser = $services->getParser();
+		$widgetHtml = wfMessage( 'relatedimages-header' )->escaped() . '<br>';
+
+		$numFilesCount = 0;
+		$numCategoriesCount = 0;
+		foreach ( $filenamesPerCategory as $category => $filenames ) {
+			$files = $repoGroup->findFiles( $filenames );
+			if ( !$files ) {
+				// No files found in this category (can happen even if File pages exist).
+				continue;
+			}
+
+			$numFilesCount += count( $files );
+			$numCategoriesCount ++;
+
+			$widgetHtml .= Xml::tags( 'h5', null,
+				$linkRenderer->makeKnownLink( new TitleValue( NS_CATEGORY, $category ) )
+			);
+			foreach ( $files as $file ) {
+				$widgetHtml .= Linker::makeImageLink(
+					$parser,
+					$file->getTitle(),
+					$file,
+					[ 'thumbnail' ],
+					[
+						'width' => $wgRelatedImagesThumbnailWidth,
+						'height' => $wgRelatedImagesThumbnailHeight
+					]
+				);
+			}
+
+			if ( $numCategoriesCount >= $wgRelatedImagesMaxCategories ) {
 				break;
 			}
 		}
-		if ( !$filenames ) {
-			// No relevant categorized File pages were found.
+		if ( $numFilesCount === 0 ) {
+			// No files found.
 			return;
-		}
-
-		// Eliminary duplicates, limit the number of results.
-		$filenames = array_slice( array_unique( $filenames ), 0, $wgRelatedImagesCount );
-
-		// Generate HTML of RelatedImages widget.
-		$files = $services->getRepoGroup()->findFiles( $filenames );
-		if ( !$files ) {
-			// No files found (can happen even if File pages exist).
-			return;
-		}
-
-
-		$widgetHtml = wfMessage( 'relatedimages-header' )->escaped() . '<br>';
-
-		$parser = $services->getParser();
-		foreach ( $files as $file ) {
-			$widgetHtml .= Linker::makeImageLink(
-				$parser,
-				$file->getTitle(),
-				$file,
-				[ 'thumbnail' ],
-				[
-					'width' => 50,
-					'height' => 50
-				]
-			);
 		}
 
 		$html = Xml::tags( 'div', [ 'class' => 'mw-related-images' ], $widgetHtml );

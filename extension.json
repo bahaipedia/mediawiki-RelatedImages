@@ -26,14 +26,26 @@
 		]
 	},
 	"config": {
-		"RelatedImagesCount": {
-                        "value": 3,
-			"description": "How many images to show."
-                },
-                "RelatedImagesIgnoredCategories": {
+		"RelatedImagesMaxCategories": {
+		        "value": 3,
+			"description": "How many categories to show in Related Images recommendations."
+		},
+		"RelatedImagesMaxImagesPerCategory": {
+		        "value": 3,
+			"description": "How many images to show for each category."
+		},
+		"RelatedImagesIgnoredCategories": {
 			"value": [],
 			"description": "List of categories that are too generic to be useful when searching for related images."
-                }
+		},
+		"RelatedImagesThumbnailWidth": {
+		        "value": 50,
+			"description": "Maximum width of thumbnails of recommended images."
+		},
+		"RelatedImagesThumbnailHeight": {
+		        "value": 50,
+			"description": "Maximum height of thumbnails of recommended images."
+		}
 	},
 	"ResourceModules": {
 		"ext.relatedimages": {
