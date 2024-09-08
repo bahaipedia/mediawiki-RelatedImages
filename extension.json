@@ -35,5 +35,29 @@
 			"description": "List of categories that are too generic to be useful when searching for related images."
                 }
 	},
+	"ResourceModules": {
+		"ext.relatedimages": {
+			"scripts": [
+				"ext.relatedimages.js"
+			],
+			"targets": [
+				"desktop",
+				"mobile"
+			]
+		},
+		"ext.relatedimages.css": {
+			"styles": [
+				"ext.relatedimages.css"
+			],
+			"targets": [
+				"desktop",
+				"mobile"
+			]
+		}
+	},
+	"ResourceFileModulePaths": {
+		"localBasePath": "modules",
+		"remoteExtPath": "RelatedImages/modules"
+	},
 	"manifest_version": 2
 }

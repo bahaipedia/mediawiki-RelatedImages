@@ -23,9 +23,12 @@
 
 namespace MediaWiki\RelatedImages;
 
+use Linker;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
+use RequestContext;
 use WikitextContent;
+use Xml;
 
 /**
  * Hooks of Extension:RelatedImages.
@@ -41,15 +44,13 @@ class Hooks implements ImagePageAfterImageLinksHook {
 	 * @return void
 	 */
 	public function onImagePageAfterImageLinks( $imagePage, &$html ): void {
-		global $wgRelatedImagesIgnoredCategories;
+		global $wgRelatedImagesIgnoredCategories, $wgRelatedImagesCount;
 
 		$title = $imagePage->getTitle();
+		$articleID = $title->getArticleID();
 
-		// TODO:
-		// set $html to a hidden <div> with the necessary code of RelatedImages,
-		// add JavaScript module that would reposition and unhide this <div>.
-
-		$dbr = MediaWikiServices::getInstance()->getDBLoadBalancer()->getConnection( DB_REPLICA );
+		$services = MediaWikiServices::getInstance();
+		$dbr = $services->getDBLoadBalancer()->getConnection( DB_REPLICA );
 
 		// Find all non-hidden categories that contain the page $title.
 		$categoryNames = $dbr->newSelectQueryBuilder()
@@ -64,7 +65,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 				'pp_page=page_id',
 			] )
 			->where( [
-				'cl_from' => $title->getArticleID(),
+				'cl_from' => $articleID,
 				'pp_propname IS NULL'
 			] )
 			->caller( __METHOD__ )
@@ -72,6 +73,10 @@ class Hooks implements ImagePageAfterImageLinksHook {
 
 		// Exclude $wgRelatedImagesIgnoredCategories from the list.
 		$categoryNames = array_diff( $categoryNames, $wgRelatedImagesIgnoredCategories );
+		if ( !$categoryNames ) {
+			// No categories found.
+			return;
+		}
 
 		// Check wikitext of $title for "which categories were added directly on this page, not via the template".
 		$directlyAdded = []; // [ 'category_name' => true ]
@@ -89,16 +94,71 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			}
 		}
 
-		// Move directly added categories to the beginning of the array of categories.
-		$categoryNames = array_merge(
+		// Randomly choose up to $wgRelatedImagesCount titles (not equal to $title) from $categoryNames.
+		$filenames = [];
+		foreach ( [
+			// Directly added categories are checked first.
 			$directlyAdded,
 			array_diff( $categoryNames, $directlyAdded )
-		);
+		] as $categories ) {
+			$moreFilenames = $dbr->newSelectQueryBuilder()
+				->select( [ 'DISTINCT page_title' ] )
+				->from( 'categorylinks' )
+				->join( 'page', null, [
+					'page_id=cl_from',
+					'page_namespace' => NS_FILE
+				] )
+				->where( [
+					'cl_to' => $categoryNames,
+					'cl_from <> ' . $articleID
+				] )
+				->limit( $wgRelatedImagesCount * 2 ) // Fetch 2 times more to avoid insufficient results due to duplicates
+				->caller( __METHOD__ )
+				->fetchFieldValues();
 
-		// Randomly choose up to $wgRelatedImagesCount titles (not equal to $title) from $categoryNames.
+			array_push( $filenames, ...$moreFilenames );
+
+			if ( count( $moreFilenames ) >= $wgRelatedImagesCount ) {
+				break;
+			}
+		}
+		if ( !$filenames ) {
+			// No relevant categorized File pages were found.
+			return;
+		}
+
+		// Eliminary duplicates, limit the number of results.
+		$filenames = array_slice( array_unique( $filenames ), 0, $wgRelatedImagesCount );
+
+		// Generate HTML of RelatedImages widget.
+		$files = $services->getRepoGroup()->findFiles( $filenames );
+		if ( !$files ) {
+			// No files found (can happen even if File pages exist).
+			return;
+		}
 
 
-		$html = 'TODO: add RelatedImages';
+		$widgetHtml = wfMessage( 'relatedimages-header' )->escaped();
+
+		$parser = $services->getParser();
+		foreach ( $files as $file ) {
+			$widgetHtml .= Linker::makeImageLink(
+				$parser,
+				$file->getTitle(),
+				$file,
+				[ 'thumbnail' ],
+				[
+					'width' => 50,
+					'height' => 50
+				]
+			);
+		}
+
+		$html = Xml::tags( 'div', [ 'class' => 'mw-related-images' ], $widgetHtml );
+
+		$out = RequestContext::getMain()->getOutput();
+		$out->addModuleStyles( [ 'ext.relatedimages.css' ] );
+		$out->addModules( [ 'ext.relatedimages' ] );
 	}
 
 }
