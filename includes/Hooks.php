@@ -147,7 +147,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			}
 
 			$numFilesCount += count( $files );
-			$numCategoriesCount ++;
+			$numCategoriesCount++;
 
 			$widgetHtml .= Xml::tags( 'h5', null,
 				$linkRenderer->makeKnownLink( new TitleValue( NS_CATEGORY, $category ) )
