@@ -138,7 +138,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		}
 
 
-		$widgetHtml = wfMessage( 'relatedimages-header' )->escaped();
+		$widgetHtml = wfMessage( 'relatedimages-header' )->escaped() . '<br>';
 
 		$parser = $services->getParser();
 		foreach ( $files as $file ) {
