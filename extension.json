@@ -14,7 +14,14 @@
 	},
 	"HookHandlers": {
 		"main": {
-			"class": "MediaWiki\\RelatedImages\\Hooks"
+			"class": "MediaWiki\\RelatedImages\\Hooks",
+			"services": [
+				"DBLoadBalancer",
+				"LinkRenderer",
+				"Parser",
+				"RepoGroup",
+				"WikiPageFactory"
+			]
 		}
 	},
 	"Hooks": {

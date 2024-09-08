@@ -24,10 +24,14 @@
 namespace MediaWiki\RelatedImages;
 
 use Linker;
-use MediaWiki\MediaWikiServices;
+use MediaWiki\Linker\LinkRenderer;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
+use MediaWiki\Page\WikiPageFactory;
+use Parser;
+use RepoGroup;
 use RequestContext;
 use TitleValue;
+use Wikimedia\Rdbms\LoadBalancer;
 use WikitextContent;
 use Xml;
 
@@ -35,6 +39,41 @@ use Xml;
  * Hooks of Extension:RelatedImages.
  */
 class Hooks implements ImagePageAfterImageLinksHook {
+	/** @var LoadBalancer */
+	protected $loadBalancer;
+
+	/** @var LinkRenderer */
+	protected $linkRenderer;
+
+	/** @var Parser */
+	protected $parser;
+
+	/** @var RepoGroup */
+	protected $repoGroup;
+
+	/** @var WikiPageFactory */
+	protected $wikiPageFactory;
+
+	/**
+	 * @param LoadBalancer $loadBalancer
+	 * @param LinkRenderer $linkRenderer
+	 * @param Parser $parser
+	 * @param RepoGroup $repoGroup
+	 * @param WikiPageFactory $wikiPageFactory
+	 */
+	public function __construct(
+		LoadBalancer $loadBalancer,
+		LinkRenderer $linkRenderer,
+		Parser $parser,
+		RepoGroup $repoGroup,
+		WikiPageFactory $wikiPageFactory
+	) {
+		$this->loadBalancer = $loadBalancer;
+		$this->linkRenderer = $linkRenderer;
+		$this->parser = $parser;
+		$this->repoGroup = $repoGroup;
+		$this->wikiPageFactory = $wikiPageFactory;
+	}
 
 	/**
 	 * When rendering the page File:Something, find several more images that are
@@ -54,11 +93,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		$title = $imagePage->getTitle();
 		$articleID = $title->getArticleID();
 
-		$services = MediaWikiServices::getInstance();
-		$repoGroup = $services->getRepoGroup();
-		$linkRenderer = $services->getLinkRenderer();
-
-		$dbr = $services->getDBLoadBalancer()->getConnection( DB_REPLICA );
+		$dbr = $this->loadBalancer->getConnection( DB_REPLICA );
 
 		// Find all non-hidden categories that contain the page $title.
 		$categoryNames = $dbr->newSelectQueryBuilder()
@@ -89,7 +124,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		// Check wikitext of $title for "which categories were added directly on this page, not via the template".
 		$directlyAdded = []; // [ 'category_name' => true ]
 
-		$content = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromLinkTarget( $title )->getContent();
+		$content = $this->wikiPageFactory->newFromLinkTarget( $title )->getContent();
 		if ( $content && $content instanceof WikitextContent ) {
 			foreach ( $categoryNames as $category ) {
 				// This will likely match [[Category:<name>]] or [[Category:<name>|sortkey]] syntax.
@@ -134,13 +169,12 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		}
 
 		// Generate HTML of RelatedImages widget.
-		$parser = $services->getParser();
 		$widgetHtml = wfMessage( 'relatedimages-header' )->escaped() . '<br>';
 
 		$numFilesCount = 0;
 		$numCategoriesCount = 0;
 		foreach ( $filenamesPerCategory as $category => $filenames ) {
-			$files = $repoGroup->findFiles( $filenames );
+			$files = $this->repoGroup->findFiles( $filenames );
 			if ( !$files ) {
 				// No files found in this category (can happen even if File pages exist).
 				continue;
@@ -150,11 +184,11 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			$numCategoriesCount++;
 
 			$widgetHtml .= Xml::tags( 'h5', null,
-				$linkRenderer->makeKnownLink( new TitleValue( NS_CATEGORY, $category ) )
+				$this->linkRenderer->makeKnownLink( new TitleValue( NS_CATEGORY, $category ) )
 			);
 			foreach ( $files as $file ) {
 				$widgetHtml .= Linker::makeImageLink(
-					$parser,
+					$this->parser,
 					$file->getTitle(),
 					$file,
 					[ 'thumbnail' ],
