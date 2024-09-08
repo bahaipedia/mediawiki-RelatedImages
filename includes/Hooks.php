@@ -23,6 +23,7 @@
 
 namespace MediaWiki\RelatedImages;
 
+use ImagePage;
 use Linker;
 use MediaWiki\Linker\LinkRenderer;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
@@ -81,9 +82,9 @@ class Hooks implements ImagePageAfterImageLinksHook {
 	 *
 	 * @param ImagePage $imagePage
 	 * @param string &$html
-	 * @return void
+	 * @return bool|void
 	 */
-	public function onImagePageAfterImageLinks( $imagePage, &$html ): void {
+	public function onImagePageAfterImageLinks( $imagePage, &$html ) {
 		global $wgRelatedImagesIgnoredCategories,
 			$wgRelatedImagesMaxCategories,
 			$wgRelatedImagesMaxImagesPerCategory,
