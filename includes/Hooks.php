@@ -27,7 +27,6 @@ use ImagePage;
 use Linker;
 use MediaWiki\Content\Renderer\ContentRenderer;
 use MediaWiki\Linker\LinkRenderer;
-use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
 use MediaWiki\Page\PageIdentity;
 use MediaWiki\Page\WikiPageFactory;
@@ -98,7 +97,8 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			$wgRelatedImagesMaxCategories,
 			$wgRelatedImagesMaxImagesPerCategory,
 			$wgRelatedImagesThumbnailWidth,
-			$wgRelatedImagesThumbnailHeight;
+			$wgRelatedImagesThumbnailHeight,
+			$wgRelatedImagesBoxExtraCssClass;
 
 		$title = $imagePage->getTitle();
 		$articleID = $title->getArticleID();
@@ -207,8 +207,12 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			return;
 		}
 
-		$html = Xml::tags( 'div', [ 'class' => 'mw-related-images' ], $widgetHtml );
+		$wrapperClass = 'mw-related-images';
+		if ( $wgRelatedImagesBoxExtraCssClass ) {
+			$wrapperClass .= ' ' . $wgRelatedImagesBoxExtraCssClass;
+		}
 
+		$html = Xml::tags( 'div', [ 'class' => $wrapperClass ], $widgetHtml );
 		$out = RequestContext::getMain()->getOutput();
 		$out->addModuleStyles( [ 'ext.relatedimages.css' ] );
 		$out->addModules( [ 'ext.relatedimages' ] );

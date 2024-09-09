@@ -44,7 +44,7 @@
 		},
 		"RelatedImagesIgnoredCategories": {
 			"value": [],
-			"description": "List of categories that are too generic to be useful when searching for related images."
+			"description": "List of categories that are too generic to be useful when searching for related images. Category names should start with a capital letter and use underscore (_) instead of spaces."
 		},
 		"RelatedImagesThumbnailWidth": {
 		        "value": 50,
@@ -53,6 +53,10 @@
 		"RelatedImagesThumbnailHeight": {
 		        "value": 50,
 			"description": "Maximum height of thumbnails of recommended images."
+		},
+		"RelatedImagesBoxExtraCssClass": {
+			"value": "",
+			"description": "Additional CSS classes to add to the Related Images box."
 		}
 	},
 	"ResourceModules": {

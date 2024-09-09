@@ -13,5 +13,8 @@ $wgRelatedImagesMaxImagesPerCategory = 4; // Default: 3
 $wgRelatedImagesIgnoredCategories = [ 'Some_category', 'Another_category' ]; // Default: []
 $wgRelatedImagesThumbnailWidth = 120; // Default: 50
 $wgRelatedImagesThumbnailHeight = 100; // Default: 50
-```
 
+// If the wiki uses [https://commons.wikimedia.org/wiki/Help:Image-Annotator],
+// this should disable annotations on recommendation thumbnails.
+$wgRelatedImagesBoxExtraCssClass = 'wpImageAnnotatorControl wpImageAnnotatorOff';
+```
