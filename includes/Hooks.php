@@ -25,21 +25,27 @@ namespace MediaWiki\RelatedImages;
 
 use ImagePage;
 use Linker;
+use MediaWiki\Content\Renderer\ContentRenderer;
 use MediaWiki\Linker\LinkRenderer;
+use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
+use MediaWiki\Page\PageIdentity;
 use MediaWiki\Page\WikiPageFactory;
 use Parser;
+use ParserOptions;
 use RepoGroup;
 use RequestContext;
 use TitleValue;
 use Wikimedia\Rdbms\LoadBalancer;
-use WikitextContent;
 use Xml;
 
 /**
  * Hooks of Extension:RelatedImages.
  */
 class Hooks implements ImagePageAfterImageLinksHook {
+	/** @var ContentRenderer */
+	protected $contentRenderer;
+
 	/** @var LoadBalancer */
 	protected $loadBalancer;
 
@@ -56,6 +62,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 	protected $wikiPageFactory;
 
 	/**
+	 * @param ContentRenderer $contentRenderer
 	 * @param LoadBalancer $loadBalancer
 	 * @param LinkRenderer $linkRenderer
 	 * @param Parser $parser
@@ -63,12 +70,14 @@ class Hooks implements ImagePageAfterImageLinksHook {
 	 * @param WikiPageFactory $wikiPageFactory
 	 */
 	public function __construct(
+		ContentRenderer $contentRenderer,
 		LoadBalancer $loadBalancer,
 		LinkRenderer $linkRenderer,
 		Parser $parser,
 		RepoGroup $repoGroup,
 		WikiPageFactory $wikiPageFactory
 	) {
+		$this->contentRenderer = $contentRenderer;
 		$this->loadBalancer = $loadBalancer;
 		$this->linkRenderer = $linkRenderer;
 		$this->parser = $parser;
@@ -123,21 +132,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		}
 
 		// Check wikitext of $title for "which categories were added directly on this page, not via the template".
-		$directlyAdded = []; // [ 'category_name' => true ]
-
-		$content = $this->wikiPageFactory->newFromLinkTarget( $title )->getContent();
-		if ( $content && $content instanceof WikitextContent ) {
-			foreach ( $categoryNames as $category ) {
-				// This will likely match [[Category:<name>]] or [[Category:<name>|sortkey]] syntax.
-				// We are not doing full parsing, false positives are possible and acceptable here.
-				$regex = '/:\s*' . preg_replace( '/[ _]/', '[ _]', preg_quote( $category, '/' ) ) . '\s*(\||\]\])/i';
-
-				if ( preg_match( $regex, $content->getText() ) ) {
-					$directlyAdded[] = $category;
-				}
-			}
-		}
-
+		$directlyAdded = $this->getDirectlyAddedCategories( $title->toPageIdentity() );
 		$categoryNames = array_merge( $directlyAdded, array_diff( $categoryNames, $directlyAdded ) );
 
 		// Randomly choose up to $wgRelatedImagesMaxImagesPerCategory titles (not equal to $title) from $categoryNames.
@@ -217,5 +212,24 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		$out = RequestContext::getMain()->getOutput();
 		$out->addModuleStyles( [ 'ext.relatedimages.css' ] );
 		$out->addModules( [ 'ext.relatedimages' ] );
+	}
+
+	/**
+	 * Get the list of categories that are added to $title directly (not via included templates).
+	 * @param PageIdentity $title
+	 * @return string[]
+	 */
+	protected function getDirectlyAddedCategories( PageIdentity $title ) {
+		$content = $this->wikiPageFactory->newFromTitle( $title )->getContent();
+		if ( !$content ) {
+			return [];
+		}
+
+		// Parse the wikitext, but prohibit expansion of templates.
+		$popts = ParserOptions::newFromAnon();
+		$popts->setMaxTemplateDepth( 0 );
+
+		$pout = $this->contentRenderer->getParserOutput( $content, $title, null, $popts, false );
+		return $pout->getCategoryNames();
 	}
 }

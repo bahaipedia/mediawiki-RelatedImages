@@ -6,7 +6,7 @@
 	"descriptionmsg": "relatedimages-desc",
 	"license-name": "GPL-2.0+",
 	"requires": {
-		"MediaWiki": ">= 1.35.0"
+		"MediaWiki": ">= 1.39.0"
 	},
 	"type": "other",
 	"AutoloadClasses": {
@@ -16,6 +16,7 @@
 		"main": {
 			"class": "MediaWiki\\RelatedImages\\Hooks",
 			"services": [
+				"ContentRenderer",
 				"DBLoadBalancer",
 				"LinkRenderer",
 				"Parser",
