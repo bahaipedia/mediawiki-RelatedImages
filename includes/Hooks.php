@@ -23,10 +23,12 @@
 
 namespace MediaWiki\RelatedImages;
 
+use FormatJson;
 use ImagePage;
 use Linker;
 use MediaWiki\Content\Renderer\ContentRenderer;
 use MediaWiki\Linker\LinkRenderer;
+use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
 use MediaWiki\Page\PageIdentity;
 use MediaWiki\Page\WikiPageFactory;
@@ -164,6 +166,14 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			$filenamesPerCategory[$category] = $filenames;
 		}
 
+		$logger = LoggerFactory::getInstance( 'RelatedImages' );
+		$logger->debug( 'RelatedImages: file={file}, filenamesPerCategory: {candidates}',
+			[
+				'file' => $title->getFullText(),
+				'candidates' => FormatJson::encode( $filenamesPerCategory )
+			]
+		);
+
 		// Generate HTML of RelatedImages widget.
 		$widgetHtml = wfMessage( 'relatedimages-header' )->escaped() . '<br>';
 
@@ -176,11 +186,16 @@ class Hooks implements ImagePageAfterImageLinksHook {
 				continue;
 			}
 
+			$categoryTitle = TitleValue::tryNew( NS_CATEGORY, $category );
+			if ( !$categoryTitle ) {
+				continue;
+			}
+
 			$numFilesCount += count( $files );
 			$numCategoriesCount++;
 
 			$widgetHtml .= Xml::tags( 'h5', null,
-				$this->linkRenderer->makeKnownLink( new TitleValue( NS_CATEGORY, $category ) )
+				$this->linkRenderer->makeKnownLink( $categoryTitle )
 			);
 			foreach ( $files as $file ) {
 				$widgetHtml .= Linker::makeImageLink(
