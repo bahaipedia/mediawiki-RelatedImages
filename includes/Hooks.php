@@ -124,16 +124,16 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			->caller( __METHOD__ )
 			->fetchFieldValues();
 
+		// Check wikitext of $title for "which categories were added directly on this page, not via the template".
+		$directlyAdded = $this->getDirectlyAddedCategories( $title->toPageIdentity() );
+		$categoryNames = array_merge( $directlyAdded, array_diff( $categoryNames, $directlyAdded ) );
+
 		// Exclude $wgRelatedImagesIgnoredCategories from the list.
 		$categoryNames = array_diff( $categoryNames, $wgRelatedImagesIgnoredCategories );
 		if ( !$categoryNames ) {
 			// No categories found.
 			return;
 		}
-
-		// Check wikitext of $title for "which categories were added directly on this page, not via the template".
-		$directlyAdded = $this->getDirectlyAddedCategories( $title->toPageIdentity() );
-		$categoryNames = array_merge( $directlyAdded, array_diff( $categoryNames, $directlyAdded ) );
 
 		// Randomly choose up to $wgRelatedImagesMaxImagesPerCategory titles (not equal to $title) from $categoryNames.
 		$filenamesPerCategory = []; # [ 'Category_name' => [ 'filename', ... ], ... ]
