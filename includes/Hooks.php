@@ -129,8 +129,8 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		if ( $content && $content instanceof WikitextContent ) {
 			foreach ( $categoryNames as $category ) {
 				// This will likely match [[Category:<name>]] or [[Category:<name>|sortkey]] syntax.
-				// The word "Category" might be translated to another language, so we shouldn't match it.
-				$regex = '/:\s*' . str_replace( ' ', '_', preg_quote( $category, '/' ) ) . '\s*(\||\]\])/';
+				// We are not doing full parsing, false positives are possible and acceptable here.
+				$regex = '/:\s*' . preg_replace( '/[ _]/', '[ _]', preg_quote( $category, '/' ) ) . '\s*(\||\]\])/i';
 
 				if ( preg_match( $regex, $content->getText() ) ) {
 					$directlyAdded[] = $category;
