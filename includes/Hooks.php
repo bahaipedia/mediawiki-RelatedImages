@@ -137,6 +137,10 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			return;
 		}
 
+		// For consistency, ensure that category names like "2000" haven't been converted into integers.
+		// (e.g. TitleValue constructor only accepts strings)
+		$categoryNames = array_map( 'strval', $categoryNames );
+
 		// Randomly choose up to $wgRelatedImagesMaxImagesPerCategory titles (not equal to $title) from $categoryNames.
 		$filenamesPerCategory = []; # [ 'Category_name' => [ 'filename', ... ], ... ]
 		$seenFilenames = [];
