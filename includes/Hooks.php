@@ -35,6 +35,7 @@ use MediaWiki\Page\WikiPageFactory;
 use ParserOptions;
 use RepoGroup;
 use RequestContext;
+use TitleValue;
 use Wikimedia\Rdbms\LoadBalancer;
 use Xml;
 
@@ -181,7 +182,13 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			$numFilesCount += count( $files );
 			$numCategoriesCount++;
 
-			$widgetWikitext .= "\n===== [[:Category:$category|]] =====\n";
+			$categoryTitle = TitleValue::tryNew( NS_CATEGORY, (string)$category );
+			if ( !$categoryTitle ) {
+				continue;
+			}
+			$categoryName = $categoryTitle->getText();
+
+			$widgetWikitext .= "\n===== [[:Category:$categoryName|$categoryName]] =====\n";
 
 			foreach ( $files as $file ) {
 				$filename = $file->getTitle()->getPrefixedText();
