@@ -23,7 +23,8 @@ $( function () {
 		contentmodel: 'wikitext',
 		text: wikitext,
 		prop: 'text',
-		disableeditsection: ''
+		disableeditsection: '',
+		disablelimitreport: ''
 	};
 
 	api.post( q ).done( function ( ret ) {
