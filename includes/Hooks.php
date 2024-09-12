@@ -133,6 +133,9 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		// Randomly choose up to $wgRelatedImagesMaxImagesPerCategory titles (not equal to $title) from $categoryNames.
 		$filenamesPerCategory = []; # [ 'Category_name' => [ 'filename', ... ], ... ]
 		$seenFilenames = [];
+
+		// We request more titles than needed, so that duplicates wouldn't result in less recommendations.
+		$limit = $wgRelatedImagesMaxImagesPerCategory * count( $categoryNames );
 		foreach ( $categoryNames as $category ) {
 			// Because the number of categories is low, and the number of images in them can very high,
 			// it's preferable to do 1 SQL query per category (limited by $wgRelatedImagesMaxImagesPerCategory)
@@ -148,12 +151,14 @@ class Hooks implements ImagePageAfterImageLinksHook {
 					'cl_to' => $category,
 					'cl_from <> ' . $articleID
 				] )
-				->limit( $wgRelatedImagesMaxImagesPerCategory )
+				->limit( $limit )
 				->caller( __METHOD__ )
 				->fetchFieldValues();
 
 			// Eliminate duplicates (files that have already been found in previous categories).
 			$filenames = array_diff( $filenames, $seenFilenames );
+			$filenames = array_slice( $filenames, 0, $wgRelatedImagesMaxImagesPerCategory );
+
 			array_push( $seenFilenames, ...$filenames );
 
 			$filenamesPerCategory[$category] = $filenames;
