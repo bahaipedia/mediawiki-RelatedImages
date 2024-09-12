@@ -99,7 +99,13 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			$wgRelatedImagesMaxCategories,
 			$wgRelatedImagesMaxImagesPerCategory,
 			$wgRelatedImagesBoxExtraCssClass,
-			$wgRelatedImagesExperimentalPregenerateThumbnails;
+			$wgRelatedImagesExperimentalPregenerateThumbnails,
+			$wgRelatedImagesDisableForExtensions;
+
+		if ( in_array( $imagePage->getFile()->getExtension(), $wgRelatedImagesDisableForExtensions ) ) {
+			// Not needed for this kind of file.
+			return;
+		}
 
 		$title = $imagePage->getTitle();
 		$articleID = $title->getArticleID();
