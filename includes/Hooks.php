@@ -120,6 +120,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 
 		// Check wikitext of $title for "which categories were added directly on this page, not via the template".
 		$directlyAdded = $this->getDirectlyAddedCategories( $title->toPageIdentity() );
+		$directlyAdded = array_intersect( $directlyAdded, $categoryNames ); // Exclude hidden categories
 		$categoryNames = array_merge( $directlyAdded, array_diff( $categoryNames, $directlyAdded ) );
 
 		// Exclude $wgRelatedImagesIgnoredCategories from the list.
