@@ -57,6 +57,10 @@
 		"RelatedImagesBoxExtraCssClass": {
 			"value": "",
 			"description": "Additional CSS classes to add to the Related Images box."
+		},
+		"RelatedImagesExperimentalPregenerateThumbnails": {
+			"value": false,
+			"description": "(((don't enable except for experimental testing))) If true, extension attempts to generate thumbnails in background while the page File:Something.php is being loaded by the browser. This setting needs practical testing for the following 2 outcomes: it MIGHT show thumbnails to user faster (wanted outcome), it also MIGHT cause extra server load due to the same thumbnails being generated twice (unwanted outcome)."
 		}
 	},
 	"ResourceModules": {

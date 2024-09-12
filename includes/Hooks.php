@@ -23,6 +23,8 @@
 
 namespace MediaWiki\RelatedImages;
 
+use ContentHandler;
+use DeferredUpdates;
 use FormatJson;
 use ImagePage;
 use MediaWiki\Content\Renderer\ContentRenderer;
@@ -96,7 +98,8 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		global $wgRelatedImagesIgnoredCategories,
 			$wgRelatedImagesMaxCategories,
 			$wgRelatedImagesMaxImagesPerCategory,
-			$wgRelatedImagesBoxExtraCssClass;
+			$wgRelatedImagesBoxExtraCssClass,
+			$wgRelatedImagesExperimentalPregenerateThumbnails;
 
 		$title = $imagePage->getTitle();
 		$articleID = $title->getArticleID();
@@ -214,6 +217,15 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		$out = RequestContext::getMain()->getOutput();
 		$out->addModuleStyles( [ 'ext.relatedimages.css' ] );
 		$out->addModules( [ 'ext.relatedimages' ] );
+
+		if ( $wgRelatedImagesExperimentalPregenerateThumbnails ) {
+			// Experimental: parse $widgetWikitext at least once, so that at least some of the thumbnails
+			// would already be generated before JavaScript uses /api.php?action=parse.
+			DeferredUpdates::addCallableUpdate( function () use( $title, $widgetWikitext ) {
+				$content = ContentHandler::makeContent( $widgetWikitext, null, CONTENT_MODEL_WIKITEXT );
+				$this->contentRenderer->getParserOutput( $content, $title );
+			} );
+		}
 	}
 
 	/**
