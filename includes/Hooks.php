@@ -28,12 +28,10 @@ use DeferredUpdates;
 use FormatJson;
 use ImagePage;
 use MediaWiki\Content\Renderer\ContentRenderer;
-use MediaWiki\Linker\LinkRenderer;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
 use MediaWiki\Page\PageIdentity;
 use MediaWiki\Page\WikiPageFactory;
-use Parser;
 use ParserOptions;
 use RepoGroup;
 use RequestContext;
@@ -50,12 +48,6 @@ class Hooks implements ImagePageAfterImageLinksHook {
 	/** @var LoadBalancer */
 	protected $loadBalancer;
 
-	/** @var LinkRenderer */
-	protected $linkRenderer;
-
-	/** @var Parser */
-	protected $parser;
-
 	/** @var RepoGroup */
 	protected $repoGroup;
 
@@ -65,23 +57,17 @@ class Hooks implements ImagePageAfterImageLinksHook {
 	/**
 	 * @param ContentRenderer $contentRenderer
 	 * @param LoadBalancer $loadBalancer
-	 * @param LinkRenderer $linkRenderer
-	 * @param Parser $parser
 	 * @param RepoGroup $repoGroup
 	 * @param WikiPageFactory $wikiPageFactory
 	 */
 	public function __construct(
 		ContentRenderer $contentRenderer,
 		LoadBalancer $loadBalancer,
-		LinkRenderer $linkRenderer,
-		Parser $parser,
 		RepoGroup $repoGroup,
 		WikiPageFactory $wikiPageFactory
 	) {
 		$this->contentRenderer = $contentRenderer;
 		$this->loadBalancer = $loadBalancer;
-		$this->linkRenderer = $linkRenderer;
-		$this->parser = $parser;
 		$this->repoGroup = $repoGroup;
 		$this->wikiPageFactory = $wikiPageFactory;
 	}
