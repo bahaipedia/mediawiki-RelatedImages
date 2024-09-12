@@ -67,6 +67,9 @@
 			"targets": [
 				"desktop",
 				"mobile"
+			],
+			"dependencies": [
+				"mediawiki.api"
 			]
 		},
 		"ext.relatedimages.css": {

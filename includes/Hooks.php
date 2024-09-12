@@ -25,7 +25,6 @@ namespace MediaWiki\RelatedImages;
 
 use FormatJson;
 use ImagePage;
-use Linker;
 use MediaWiki\Content\Renderer\ContentRenderer;
 use MediaWiki\Linker\LinkRenderer;
 use MediaWiki\Logger\LoggerFactory;
@@ -36,7 +35,6 @@ use Parser;
 use ParserOptions;
 use RepoGroup;
 use RequestContext;
-use TitleValue;
 use Wikimedia\Rdbms\LoadBalancer;
 use Xml;
 
@@ -98,8 +96,6 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		global $wgRelatedImagesIgnoredCategories,
 			$wgRelatedImagesMaxCategories,
 			$wgRelatedImagesMaxImagesPerCategory,
-			$wgRelatedImagesThumbnailWidth,
-			$wgRelatedImagesThumbnailHeight,
 			$wgRelatedImagesBoxExtraCssClass;
 
 		$title = $imagePage->getTitle();
@@ -175,7 +171,8 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		);
 
 		// Generate HTML of RelatedImages widget.
-		$widgetHtml = wfMessage( 'relatedimages-header' )->escaped() . '<br>';
+		$widgetWikitext = wfMessage( 'relatedimages-header' )->plain();
+		$thumbsize = $this->getThumbnailSize();
 
 		$numFilesCount = 0;
 		$numCategoriesCount = 0;
@@ -186,31 +183,14 @@ class Hooks implements ImagePageAfterImageLinksHook {
 				continue;
 			}
 
-			$categoryTitle = TitleValue::tryNew( NS_CATEGORY, (string)$category );
-			if ( !$categoryTitle ) {
-				continue;
-			}
-
 			$numFilesCount += count( $files );
 			$numCategoriesCount++;
 
-			$widgetHtml .= Xml::tags( 'h5', null,
-				$this->linkRenderer->makeKnownLink( $categoryTitle )
-			);
+			$widgetWikitext .= "\n===== $category =====\n";
+
 			foreach ( $files as $file ) {
-				$widgetHtml .= Linker::makeImageLink(
-					$this->parser,
-					$file->getTitle(),
-					$file,
-					[
-						'thumbnail',
-						'title' => $file->getTitle()->getPrefixedText()
-					],
-					[
-						'width' => $wgRelatedImagesThumbnailWidth,
-						'height' => $wgRelatedImagesThumbnailHeight
-					]
-				);
+				$filename = $file->getTitle()->getPrefixedText();
+				$widgetWikitext .= "[[$filename|title=$filename|$thumbsize]]";
 			}
 
 			if ( $numCategoriesCount >= $wgRelatedImagesMaxCategories ) {
@@ -226,6 +206,9 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		if ( $wgRelatedImagesBoxExtraCssClass ) {
 			$wrapperClass .= ' ' . $wgRelatedImagesBoxExtraCssClass;
 		}
+
+		// This wikitext will later be rendered by Javascript (using api.php?action=parse).
+		$widgetHtml = Xml::element( 'pre', null, $widgetWikitext );
 
 		$html = Xml::tags( 'div', [ 'class' => $wrapperClass ], $widgetHtml );
 		$out = RequestContext::getMain()->getOutput();
@@ -250,5 +233,31 @@ class Hooks implements ImagePageAfterImageLinksHook {
 
 		$pout = $this->contentRenderer->getParserOutput( $content, $title, null, $popts, false );
 		return $pout->getCategoryNames();
+	}
+
+	/**
+	 * Get thumbnail size parameters (e.g. "100x50px") for wikitext that adds thumbnails.
+	 * @return string
+	 */
+	protected function getThumbnailSize() {
+		global $wgRelatedImagesThumbnailWidth,
+			$wgRelatedImagesThumbnailHeight;
+
+		$thumbsize = '';
+		$width = intval( $wgRelatedImagesThumbnailWidth );
+		if ( $width > 0 ) {
+			$thumbsize .= $width;
+		}
+
+		$height = intval( $wgRelatedImagesThumbnailHeight );
+		if ( $height > 0 ) {
+			$thumbsize .= "x$height";
+		}
+
+		if ( $thumbsize ) {
+			$thumbsize .= 'px';
+		}
+
+		return $thumbsize;
 	}
 }
