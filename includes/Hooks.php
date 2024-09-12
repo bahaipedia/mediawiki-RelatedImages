@@ -181,11 +181,11 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			$numFilesCount += count( $files );
 			$numCategoriesCount++;
 
-			$widgetWikitext .= "\n===== $category =====\n";
+			$widgetWikitext .= "\n===== [[:Category:$category|]] =====\n";
 
 			foreach ( $files as $file ) {
 				$filename = $file->getTitle()->getPrefixedText();
-				$widgetWikitext .= "[[$filename|title=$filename|$thumbsize]]";
+				$widgetWikitext .= "[[$filename|$thumbsize]]";
 			}
 
 			if ( $numCategoriesCount >= $wgRelatedImagesMaxCategories ) {
