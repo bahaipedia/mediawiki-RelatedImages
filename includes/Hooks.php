@@ -25,6 +25,7 @@ namespace MediaWiki\RelatedImages;
 
 use ContentHandler;
 use DeferredUpdates;
+use FileRepo;
 use FormatJson;
 use ImagePage;
 use MediaWiki\Content\Renderer\ContentRenderer;
@@ -35,7 +36,6 @@ use MediaWiki\Page\WikiPageFactory;
 use ParserOptions;
 use RepoGroup;
 use RequestContext;
-use TitleValue;
 use Wikimedia\Rdbms\LoadBalancer;
 use Xml;
 
@@ -152,6 +152,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 					'cl_from <> ' . $articleID
 				] )
 				->limit( $limit )
+				->orderBy( 'cl_sortkey' )
 				->caller( __METHOD__ )
 				->fetchFieldValues();
 
@@ -173,35 +174,30 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		);
 
 		// Generate HTML of RelatedImages widget.
-		$widgetWikitext = wfMessage( 'relatedimages-header' )->plain();
+		$widgetWikitext = '__NOTOC__' . wfMessage( 'relatedimages-header' )->plain();
 		$thumbsize = $this->getThumbnailSize();
 
 		$numFilesCount = 0;
 		$numCategoriesCount = 0;
 		foreach ( $filenamesPerCategory as $category => $filenames ) {
-			$files = $this->repoGroup->findFiles( $filenames );
-			if ( !$files ) {
+			$found = $this->repoGroup->findFiles( $filenames, FileRepo::NAME_AND_TIME_ONLY );
+			if ( !$found ) {
 				// No files found in this category (can happen even if File pages exist).
 				continue;
 			}
 
-			$numFilesCount += count( $files );
-			$numCategoriesCount++;
+			$numFilesCount += count( $found );
 
-			$categoryTitle = TitleValue::tryNew( NS_CATEGORY, (string)$category );
-			if ( !$categoryTitle ) {
-				continue;
-			}
-			$categoryName = $categoryTitle->getText();
-
+			$categoryName = strtr( $category, '_', ' ' );
 			$widgetWikitext .= "\n===== [[:Category:$categoryName|$categoryName]] =====\n";
 
-			foreach ( $files as $file ) {
-				$filename = $file->getTitle()->getPrefixedText();
-				$widgetWikitext .= "[[$filename|$thumbsize]]";
+			foreach ( $filenames as $filename ) {
+				if ( isset( $found[$filename] ) ) {
+					$widgetWikitext .= "[[File:$filename|$thumbsize]]";
+				}
 			}
 
-			if ( $numCategoriesCount >= $wgRelatedImagesMaxCategories ) {
+			if ( ++$numCategoriesCount >= $wgRelatedImagesMaxCategories ) {
 				break;
 			}
 		}
@@ -216,6 +212,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		}
 
 		// This wikitext will later be rendered by Javascript (using api.php?action=parse).
+		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 		$widgetHtml = Xml::element( 'pre', null, $widgetWikitext );
 
 		$html = Xml::tags( 'div', [ 'class' => $wrapperClass ], $widgetHtml );
