@@ -133,9 +133,12 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		}
 
 		// Randomly choose up to $wgRelatedImagesMaxImagesPerCategory titles (not equal to $title) from $categoryNames.
+		$filenamesPerCategory = []; # [ 'Category_name' => [ 'filename', ... ], ... ]
+		$seenFilenames = [];
+
 		$res = $dbr->newSelectQueryBuilder()
 			->select( [
-				'DISTINCT page_title AS filename',
+				'page_title AS filename',
 				'cl_to AS category'
 			] )
 			->from( 'categorylinks' )
@@ -151,8 +154,13 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			->caller( __METHOD__ )
 			->fetchResultSet();
 
-		$filenamesPerCategory = []; # [ 'Category_name' => [ 'filename', ... ], ... ]
 		foreach ( $res as $row ) {
+			if ( isset( $seenFilenames[$row->filename] ) ) {
+				// Already recommended in another category.
+				continue;
+			}
+			$seenFilenames[$row->filename] = true;
+
 			$filenameParts = explode( '.', $row->filename );
 			$extension = File::normalizeExtension( $filenameParts[count( $filenameParts ) - 1] );
 			if ( in_array( $extension, $wgRelatedImagesDoNotRecommendExtensions ) ) {
