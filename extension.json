@@ -63,6 +63,10 @@
 		"RelatedImagesDisableForExtensions": {
 			"value": [ "ogg", "pdf" ],
 			"description": "Related Images box won't be shown on File pages with these file extensions."
+		},
+		"RelatedImagesDoNotRecommendExtensions": {
+			"value": [ "ogg", "pdf" ],
+			"description": "Related Images box won't recommend files with these file extensions."
 		}
 	},
 	"ResourceModules": {

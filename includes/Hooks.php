@@ -25,6 +25,7 @@ namespace MediaWiki\RelatedImages;
 
 use ContentHandler;
 use DeferredUpdates;
+use File;
 use FileRepo;
 use FormatJson;
 use ImagePage;
@@ -87,7 +88,8 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			$wgRelatedImagesMaxImagesPerCategory,
 			$wgRelatedImagesBoxExtraCssClass,
 			$wgRelatedImagesExperimentalPregenerateThumbnails,
-			$wgRelatedImagesDisableForExtensions;
+			$wgRelatedImagesDisableForExtensions,
+			$wgRelatedImagesDoNotRecommendExtensions;
 
 		if ( in_array( $imagePage->getFile()->getExtension(), $wgRelatedImagesDisableForExtensions ) ) {
 			// Not needed for this kind of file.
@@ -131,38 +133,40 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		}
 
 		// Randomly choose up to $wgRelatedImagesMaxImagesPerCategory titles (not equal to $title) from $categoryNames.
+		$res = $dbr->newSelectQueryBuilder()
+			->select( [
+				'DISTINCT page_title AS filename',
+				'cl_to AS category'
+			] )
+			->from( 'categorylinks' )
+			->join( 'page', null, [
+				'page_id=cl_from',
+				'page_namespace' => NS_FILE
+			] )
+			->where( [
+				'cl_to' => $categoryNames,
+				'cl_from <> ' . $articleID
+			] )
+			->orderBy( 'cl_sortkey' )
+			->caller( __METHOD__ )
+			->fetchResultSet();
+
 		$filenamesPerCategory = []; # [ 'Category_name' => [ 'filename', ... ], ... ]
-		$seenFilenames = [];
+		foreach ( $res as $row ) {
+			$filenameParts = explode( '.', $row->filename );
+			$extension = File::normalizeExtension( $filenameParts[count( $filenameParts ) - 1] );
+			if ( in_array( $extension, $wgRelatedImagesDoNotRecommendExtensions ) ) {
+				// We don't want this file to be recommended.
+				continue;
+			}
 
-		// We request more titles than needed, so that duplicates wouldn't result in less recommendations.
-		$limit = $wgRelatedImagesMaxImagesPerCategory * count( $categoryNames );
-		foreach ( $categoryNames as $category ) {
-			// Because the number of categories is low, and the number of images in them can very high,
-			// it's preferable to do 1 SQL query per category (limited by $wgRelatedImagesMaxImagesPerCategory)
-			// rather than do only 1 SQL query for all categories, but without the limit.
-			$filenames = $dbr->newSelectQueryBuilder()
-				->select( [ 'DISTINCT page_title' ] )
-				->from( 'categorylinks' )
-				->join( 'page', null, [
-					'page_id=cl_from',
-					'page_namespace' => NS_FILE
-				] )
-				->where( [
-					'cl_to' => $category,
-					'cl_from <> ' . $articleID
-				] )
-				->limit( $limit )
-				->orderBy( 'cl_sortkey' )
-				->caller( __METHOD__ )
-				->fetchFieldValues();
+			if ( !isset( $filenamesPerCategory[$row->category] ) ) {
+				$filenamesPerCategory[$row->category] = [];
+			}
 
-			// Eliminate duplicates (files that have already been found in previous categories).
-			$filenames = array_diff( $filenames, $seenFilenames );
-			$filenames = array_slice( $filenames, 0, $wgRelatedImagesMaxImagesPerCategory );
-
-			array_push( $seenFilenames, ...$filenames );
-
-			$filenamesPerCategory[$category] = $filenames;
+			if ( count( $filenamesPerCategory[$row->category] ) < $wgRelatedImagesMaxImagesPerCategory ) {
+				$filenamesPerCategory[$row->category][] = $row->filename;
+			}
 		}
 
 		$logger = LoggerFactory::getInstance( 'RelatedImages' );
@@ -177,16 +181,17 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		$widgetWikitext = '__NOTOC__' . wfMessage( 'relatedimages-header' )->plain();
 		$thumbsize = $this->getThumbnailSize();
 
-		$numFilesCount = 0;
 		$numCategoriesCount = 0;
 		foreach ( $filenamesPerCategory as $category => $filenames ) {
+			if ( !$filenames ) {
+				continue;
+			}
+
 			$found = $this->repoGroup->findFiles( $filenames, FileRepo::NAME_AND_TIME_ONLY );
 			if ( !$found ) {
 				// No files found in this category (can happen even if File pages exist).
 				continue;
 			}
-
-			$numFilesCount += count( $found );
 
 			$categoryName = strtr( $category, '_', ' ' );
 			$widgetWikitext .= "\n===== [[:Category:$categoryName|$categoryName]] =====\n";
@@ -201,7 +206,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 				break;
 			}
 		}
-		if ( $numFilesCount === 0 ) {
+		if ( $numCategoriesCount === 0 ) {
 			// No files found.
 			return;
 		}

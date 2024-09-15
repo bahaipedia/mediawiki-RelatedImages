@@ -17,4 +17,8 @@ $wgRelatedImagesThumbnailHeight = 100; // Default: 50
 // If the wiki uses [https://commons.wikimedia.org/wiki/Help:Image-Annotator],
 // this should disable annotations on recommendation thumbnails.
 $wgRelatedImagesBoxExtraCssClass = 'wpImageAnnotatorControl wpImageAnnotatorOff';
+
+// Default values:
+$wgRelatedImagesDisableForExtensions = [ 'ogg', 'pdf' ];
+$wgRelatedImagesDoNotRecommendExtensions = [ 'ogg', 'pdf' ];
 ```
