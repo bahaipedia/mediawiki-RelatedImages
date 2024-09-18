@@ -190,7 +190,8 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		$thumbsize = $this->getThumbnailSize();
 
 		$numCategoriesCount = 0;
-		foreach ( $filenamesPerCategory as $category => $filenames ) {
+		foreach ( $categoryNames as $category ) {
+			$filenames = $filenamesPerCategory[$category] ?? [];
 			if ( !$filenames ) {
 				continue;
 			}
