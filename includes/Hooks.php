@@ -178,9 +178,10 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		}
 
 		$logger = LoggerFactory::getInstance( 'RelatedImages' );
-		$logger->debug( 'RelatedImages: file={file}, filenamesPerCategory: {candidates}',
+		$logger->debug( 'RelatedImages: file={file}, categoryOrder={categoryOrder}, filenamesPerCategory: {candidates}',
 			[
 				'file' => $title->getFullText(),
+				'categoryOrder' => implode( '|', $categoryNames ),
 				'candidates' => FormatJson::encode( $filenamesPerCategory )
 			]
 		);
