@@ -186,7 +186,11 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		);
 
 		// Generate HTML of RelatedImages widget.
-		$widgetWikitext = '__NOTOC__' . wfMessage( 'relatedimages-header' )->plain();
+		$widgetWikitext = '__NOTOC__' .
+			Xml::tags( 'p',
+				[ 'class' => 'mw-related-images-header' ],
+				wfMessage( 'relatedimages-header' )->plain()
+			);
 		$thumbsize = $this->getThumbnailSize();
 
 		$numCategoriesCount = 0;
