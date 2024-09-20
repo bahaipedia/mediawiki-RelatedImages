@@ -133,9 +133,6 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		}
 
 		// Randomly choose up to $wgRelatedImagesMaxImagesPerCategory titles (not equal to $title) from $categoryNames.
-		$filenamesPerCategory = []; # [ 'Category_name' => [ 'filename', ... ], ... ]
-		$seenFilenames = [];
-
 		$res = $dbr->newSelectQueryBuilder()
 			->select( [
 				'page_title AS filename',
@@ -154,6 +151,11 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			->caller( __METHOD__ )
 			->fetchResultSet();
 
+		// List of candidates to recommend (in the same order as $categoryNames):
+		// [ 'Category_name' => [ 'filename', ... ], ... ]
+		$filenamesPerCategory = array_fill_keys( $categoryNames, [] );
+		$seenFilenames = [];
+
 		foreach ( $res as $row ) {
 			if ( isset( $seenFilenames[$row->filename] ) ) {
 				// Already recommended in another category.
@@ -168,20 +170,15 @@ class Hooks implements ImagePageAfterImageLinksHook {
 				continue;
 			}
 
-			if ( !isset( $filenamesPerCategory[$row->category] ) ) {
-				$filenamesPerCategory[$row->category] = [];
-			}
-
 			if ( count( $filenamesPerCategory[$row->category] ) < $wgRelatedImagesMaxImagesPerCategory ) {
 				$filenamesPerCategory[$row->category][] = $row->filename;
 			}
 		}
 
 		$logger = LoggerFactory::getInstance( 'RelatedImages' );
-		$logger->debug( 'RelatedImages: file={file}, categoryOrder={categoryOrder}, filenamesPerCategory: {candidates}',
+		$logger->debug( 'RelatedImages: file={file}, filenamesPerCategory: {candidates}',
 			[
-				'file' => $title->getFullText(),
-				'categoryOrder' => implode( '|', $categoryNames ),
+				'file' => $title->getDBKey(),
 				'candidates' => FormatJson::encode( $filenamesPerCategory )
 			]
 		);
@@ -195,8 +192,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		$thumbsize = $this->getThumbnailSize();
 
 		$numCategoriesCount = 0;
-		foreach ( $categoryNames as $category ) {
-			$filenames = $filenamesPerCategory[$category] ?? [];
+		foreach ( $filenamesPerCategory as $category => $filenames ) {
 			if ( !$filenames ) {
 				continue;
 			}
