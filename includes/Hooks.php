@@ -154,14 +154,13 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		// List of candidates to recommend (in the same order as $categoryNames):
 		// [ 'Category_name' => [ 'filename', ... ], ... ]
 		$filenamesPerCategory = array_fill_keys( $categoryNames, [] );
-		$seenFilenames = [];
+		$usedFilenames = [];
 
 		foreach ( $res as $row ) {
-			if ( isset( $seenFilenames[$row->filename] ) ) {
+			if ( isset( $usedFilenames[$row->filename] ) ) {
 				// Already recommended in another category.
 				continue;
 			}
-			$seenFilenames[$row->filename] = true;
 
 			$filenameParts = explode( '.', $row->filename );
 			$extension = File::normalizeExtension( $filenameParts[count( $filenameParts ) - 1] );
@@ -172,6 +171,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 
 			if ( count( $filenamesPerCategory[$row->category] ) < $wgRelatedImagesMaxImagesPerCategory ) {
 				$filenamesPerCategory[$row->category][] = $row->filename;
+				$usedFilenames[$row->filename] = true;
 			}
 		}
 
