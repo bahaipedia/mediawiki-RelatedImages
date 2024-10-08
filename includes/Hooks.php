@@ -230,7 +230,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 		$widgetHtml = Xml::element( 'pre', null, $widgetWikitext );
 
-		$html = Xml::tags( 'div', [ 'class' => $wrapperClass ], $widgetHtml );
+		$html .= Xml::tags( 'div', [ 'class' => $wrapperClass ], $widgetHtml );
 		$out = RequestContext::getMain()->getOutput();
 		$out->addModuleStyles( [ 'ext.relatedimages.css' ] );
 		$out->addModules( [ 'ext.relatedimages' ] );
