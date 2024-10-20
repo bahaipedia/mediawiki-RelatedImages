@@ -1,0 +1,12 @@
+{
+	"@metadata": {
+		"authors": [
+			"Edward Chernenko"
+		]
+	},
+
+	"relatedimages-desc": "{{desc|name=RelatedImages|url=https://www.mediawiki.org/wiki/Extension:RelatedImages}}",
+	"relatedimages-header": "Header above the Related Images widget",
+	"relatedimages-more": "Link that shows more recommended categories",
+	"relatedimages-more-loading": "Temporarily shown while waiting for more recommendations to be loaded."
+}

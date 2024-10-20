@@ -86,6 +86,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		global $wgRelatedImagesIgnoredCategories,
 			$wgRelatedImagesMaxCategories,
 			$wgRelatedImagesMaxImagesPerCategory,
+			$wgRelatedImagesMoreCategoriesPerClick,
 			$wgRelatedImagesBoxExtraCssClass,
 			$wgRelatedImagesExperimentalPregenerateThumbnails,
 			$wgRelatedImagesDisableForExtensions,
@@ -184,14 +185,19 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		);
 
 		// Generate HTML of RelatedImages widget.
-		$widgetWikitext = '__NOTOC__' .
-			Xml::tags( 'p',
-				[ 'class' => 'mw-related-images-header' ],
-				wfMessage( 'relatedimages-header' )->plain()
-			);
+		$widgetWikitext = Xml::tags( 'p',
+			[ 'class' => 'mw-related-images-header' ],
+			wfMessage( 'relatedimages-header' )->plain()
+		);
 		$thumbsize = $this->getThumbnailSize();
 
-		$numCategoriesCount = 0;
+		$numCategoriesOnThisTab = 0;
+		$tabs = [];
+		$tabWikitext = '';
+
+		$limitOnThisTab = max( 1, $wgRelatedImagesMaxCategories );
+		$limitForExtraTabs = max( 1, $wgRelatedImagesMoreCategoriesPerClick );
+
 		foreach ( $filenamesPerCategory as $category => $filenames ) {
 			if ( !$filenames ) {
 				continue;
@@ -204,21 +210,39 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			}
 
 			$categoryName = strtr( $category, '_', ' ' );
-			$widgetWikitext .= "\n===== [[:Category:$categoryName|$categoryName]] =====\n";
+			$tabWikitext .= "\n===== [[:Category:$categoryName|$categoryName]] =====\n";
 
 			foreach ( $filenames as $filename ) {
 				if ( isset( $found[$filename] ) ) {
-					$widgetWikitext .= "[[File:$filename|$thumbsize]]";
+					$tabWikitext .= "[[File:$filename|$thumbsize]]";
 				}
 			}
 
-			if ( ++$numCategoriesCount >= $wgRelatedImagesMaxCategories ) {
-				break;
+			if ( ++$numCategoriesOnThisTab >= $limitOnThisTab ) {
+				/*
+					Widget consists of several "tabs". The first tab is displayed immediately,
+					and the other tabs are added when user clicks "More" link at the bottom.
+				*/
+				$tabs[] = $tabWikitext;
+				$tabWikitext = '';
+
+				$numCategoriesOnThisTab = 0;
+				$limitOnThisTab = $limitForExtraTabs;
 			}
 		}
-		if ( $numCategoriesCount === 0 ) {
+		if ( $tabWikitext ) {
+			$tabs[] = $tabWikitext;
+		}
+
+		if ( !$tabs ) {
 			// No files found.
 			return;
+		}
+
+		foreach ( $tabs as $tabWikitext ) {
+			// This wikitext will later be rendered by Javascript (using api.php?action=parse).
+			// @phan-suppress-next-line SecurityCheck-DoubleEscaped
+			$widgetWikitext .= Xml::element( 'pre', null, $tabWikitext );
 		}
 
 		$wrapperClass = 'mw-related-images';
@@ -226,11 +250,7 @@ class Hooks implements ImagePageAfterImageLinksHook {
 			$wrapperClass .= ' ' . $wgRelatedImagesBoxExtraCssClass;
 		}
 
-		// This wikitext will later be rendered by Javascript (using api.php?action=parse).
-		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
-		$widgetHtml = Xml::element( 'pre', null, $widgetWikitext );
-
-		$html .= Xml::tags( 'div', [ 'class' => $wrapperClass ], $widgetHtml );
+		$html .= Xml::tags( 'div', [ 'class' => $wrapperClass ], $widgetWikitext );
 		$out = RequestContext::getMain()->getOutput();
 		$out->addModuleStyles( [ 'ext.relatedimages.css' ] );
 		$out->addModules( [ 'ext.relatedimages' ] );

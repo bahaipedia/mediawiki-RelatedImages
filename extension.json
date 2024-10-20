@@ -33,23 +33,27 @@
 	},
 	"config": {
 		"RelatedImagesMaxCategories": {
-		        "value": 3,
+			"value": 3,
 			"description": "How many categories to show in Related Images recommendations."
 		},
 		"RelatedImagesMaxImagesPerCategory": {
-		        "value": 3,
+			"value": 3,
 			"description": "How many images to show for each category."
+		},
+		"RelatedImagesMoreCategoriesPerClick": {
+			"value": 2,
+			"description": "How many additional categories to show when user clicks More link at the bottom of Related Images recommendations."
 		},
 		"RelatedImagesIgnoredCategories": {
 			"value": [],
 			"description": "List of categories that are too generic to be useful when searching for related images. Category names should start with a capital letter and use underscore (_) instead of spaces."
 		},
 		"RelatedImagesThumbnailWidth": {
-		        "value": 50,
+			"value": 50,
 			"description": "Maximum width of thumbnails of recommended images."
 		},
 		"RelatedImagesThumbnailHeight": {
-		        "value": 50,
+			"value": 50,
 			"description": "Maximum height of thumbnails of recommended images."
 		},
 		"RelatedImagesBoxExtraCssClass": {
@@ -80,6 +84,10 @@
 			],
 			"dependencies": [
 				"mediawiki.api"
+			],
+			"messages": [
+				"relatedimages-more",
+				"relatedimages-more-loading"
 			]
 		},
 		"ext.relatedimages.css": {
