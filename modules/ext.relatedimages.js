@@ -44,6 +44,7 @@
 			if ( $nextTab.length ) {
 				// Add "More" link to load 1 more tab.
 				$parsed.append( $( '<a>' )
+					.attr( 'class', 'mw-relatedimages-more' )
 					.append( mw.msg( 'relatedimages-more' ) )
 					.click( function () {
 						$( this ).remove();
