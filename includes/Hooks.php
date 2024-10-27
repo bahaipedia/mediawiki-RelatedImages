@@ -241,7 +241,6 @@ class Hooks implements ImagePageAfterImageLinksHook {
 
 		foreach ( $tabs as $tabWikitext ) {
 			// This wikitext will later be rendered by Javascript (using api.php?action=parse).
-			// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 			$widgetWikitext .= Xml::element( 'pre', null, $tabWikitext );
 		}
 
