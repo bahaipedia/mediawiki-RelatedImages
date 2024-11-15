@@ -116,6 +116,9 @@
 				"desktop",
 				"mobile"
 			],
+			"dependencies": [
+				"mediawiki.Title"
+			],
 			"messages": [
 				"subcatimagesgallery-empty",
 				"subcatimagesgallery-link",
