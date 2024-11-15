@@ -88,6 +88,7 @@ class SpecialSubcatImagesGallery extends UnlistedSpecialPage {
 			->where( [
 				'topcat.cl_to' => $categoryTitle->getDbKey()
 			] )
+			->orderBy( 'subcat.cl_sortkey' )
 			->limit( $this->getConfig()->get( 'RelatedImagesMaxSubcatImages' ) )
 			->caller( __METHOD__ )
 			->fetchFieldValues();
