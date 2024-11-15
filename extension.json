@@ -10,7 +10,11 @@
 	},
 	"type": "other",
 	"AutoloadClasses": {
-		"MediaWiki\\RelatedImages\\Hooks": "includes/Hooks.php"
+		"MediaWiki\\RelatedImages\\Hooks": "includes/Hooks.php",
+		"MediaWiki\\RelatedImages\\SpecialSubcatImagesGallery": "includes/specials/SpecialSubcatImagesGallery.php"
+	},
+	"ExtensionMessagesFiles": {
+		"RelatedImagesAlias": "RelatedImages.alias.php"
 	},
 	"HookHandlers": {
 		"main": {
@@ -71,6 +75,10 @@
 		"RelatedImagesDoNotRecommendExtensions": {
 			"value": [ "ogg", "pdf" ],
 			"description": "Related Images box won't recommend files with these file extensions."
+		},
+		"RelatedImagesMaxSubcatImages": {
+			"value": 100,
+			"description": "Maximum number of additional thumbnails to show when user clicks \"Show images from subcategories\" link on category pages."
 		}
 	},
 	"ResourceModules": {
@@ -103,6 +111,14 @@
 	"ResourceFileModulePaths": {
 		"localBasePath": "modules",
 		"remoteExtPath": "RelatedImages/modules"
+	},
+	"SpecialPages": {
+		"SubcatImagesGallery": {
+			"class": "MediaWiki\\RelatedImages\\SpecialSubcatImagesGallery",
+			"services": [
+				"DBLoadBalancer"
+			]
+		}
 	},
 	"manifest_version": 2
 }
