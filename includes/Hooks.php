@@ -23,6 +23,7 @@
 
 namespace MediaWiki\RelatedImages;
 
+use CategoryPage;
 use ContentHandler;
 use DeferredUpdates;
 use File;
@@ -31,6 +32,7 @@ use FormatJson;
 use ImagePage;
 use MediaWiki\Content\Renderer\ContentRenderer;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\Page\Hook\CategoryPageViewHook;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
 use MediaWiki\Page\PageIdentity;
 use MediaWiki\Page\WikiPageFactory;
@@ -43,7 +45,7 @@ use Xml;
 /**
  * Hooks of Extension:RelatedImages.
  */
-class Hooks implements ImagePageAfterImageLinksHook {
+class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook {
 	/** @var ContentRenderer */
 	protected $contentRenderer;
 
@@ -72,6 +74,16 @@ class Hooks implements ImagePageAfterImageLinksHook {
 		$this->loadBalancer = $loadBalancer;
 		$this->repoGroup = $repoGroup;
 		$this->wikiPageFactory = $wikiPageFactory;
+	}
+
+	/**
+	 * Add "Show images from subcategories" link to category pages.
+	 *
+	 * @param CategoryPage $catpage
+	 * @return bool|void True or no return value to continue or false to abort
+	 */
+	public function onCategoryPageView( $catpage ) {
+		$catpage->getContext()->getOutput()->addModules( [ 'ext.relatedimages.subcatlink' ] );
 	}
 
 	/**
