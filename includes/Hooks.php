@@ -83,7 +83,10 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook {
 	 * @return bool|void True or no return value to continue or false to abort
 	 */
 	public function onCategoryPageView( $catpage ) {
-		$catpage->getContext()->getOutput()->addModules( [ 'ext.relatedimages.subcatlink' ] );
+		$catpage->getContext()->getOutput()->addModules( [
+			'ext.relatedimages.subcatlink',
+			'mediawiki.page.gallery.styles'
+		] );
 	}
 
 	/**

@@ -8,12 +8,7 @@ $( function () {
 		return;
 	}
 
-	var $gallery = $( '.gallery' );
-	if ( !$gallery.length ) {
-		// No images in this category,
-		// it's very likely that subcategores won't have them either.
-		return;
-	}
+	var $contents = $( '.mw-category' );
 
 	var $loading = $( '<div>' )
 		.attr( 'class', 'mw-subcatimagesgallery-loading' )
@@ -23,11 +18,10 @@ $( function () {
 		$loading.html( mw.msg( 'subcatimagesgallery-empty' ) );
 	}
 
-	$gallery.after( $( '<a>' )
+	$contents.append( $( '<a>' )
 		.append( mw.msg( 'subcatimagesgallery-link' ) )
 		.click( function () {
-			$( this ).remove();
-			$gallery.after( $loading );
+			$( this ).replaceWith( $loading );
 
 			var url = new mw.Title( 'Special:SubcatImagesGallery/' + mw.config.get( 'wgTitle' ) ).getUrl();
 			$.get( url ).done( function ( res ) {
