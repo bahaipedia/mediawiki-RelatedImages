@@ -28,7 +28,7 @@ $( function () {
 
 			var url = new mw.Title( 'Special:SubcatImagesGallery/' + mw.config.get( 'wgTitle' ) ).getUrl();
 			$.get( url ).done( function ( res ) {
-				var $newgallery = $( '<div>' ).append( res ).find( '.gallery' );
+				var $newgallery = $( '<div>' ).append( res ).find( '.mw-subcatimagesgallery-result' );
 				if ( !$newgallery.length ) {
 					return onfail();
 				}

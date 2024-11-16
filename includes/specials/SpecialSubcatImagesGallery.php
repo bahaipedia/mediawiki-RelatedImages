@@ -24,9 +24,11 @@
 namespace MediaWiki\RelatedImages;
 
 use ImageGalleryBase;
+use Linker;
 use Title;
 use UnlistedSpecialPage;
 use Wikimedia\Rdbms\ILoadBalancer;
+use Xml;
 
 /**
  * Implements hidden special page [[Special:SubcatImagesGallery/CategoryNameHere]],
@@ -69,9 +71,10 @@ class SpecialSubcatImagesGallery extends UnlistedSpecialPage {
 	 */
 	public function displayGallery( Title $categoryTitle ) {
 		$dbr = $this->loadBalancer->getConnection( DB_REPLICA );
-		$filenames = $dbr->newSelectQueryBuilder()
+		$res = $dbr->newSelectQueryBuilder()
 			->select( [
-				'DISTINCT subcatpage.page_title'
+				'filename' => 'subcatpage.page_title',
+				'category' => 'subcat.cl_to'
 			] )
 			->from( 'categorylinks', 'topcat' )
 			->join( 'page', 'topcatpage', [
@@ -88,25 +91,57 @@ class SpecialSubcatImagesGallery extends UnlistedSpecialPage {
 			->where( [
 				'topcat.cl_to' => $categoryTitle->getDbKey()
 			] )
-			->orderBy( 'subcat.cl_sortkey' )
-			->limit( $this->getConfig()->get( 'RelatedImagesMaxSubcatImages' ) )
+			->groupBy( [ 'filename', 'category' ] )
+			->orderBy( [ 'category', 'subcat.cl_sortkey' ] )
 			->caller( __METHOD__ )
-			->fetchFieldValues();
+			->fetchResultSet();
 
 		$out = $this->getOutput();
-		if ( !$filenames ) {
+		if ( $res->numRows() < 1 ) {
 			$out->addWikiMsg( 'subcatimagesgallery-empty' );
 			return;
 		}
 
-		$gallery = ImageGalleryBase::factory( false, $this->getContext() );
-		$gallery->setHideBadImages( true );
+		$filenamesByCategory = []; // [ 'category1' => [ 'filename1', 'filename2', ... ], ... ]
+		$seenFilenames = [];
+		foreach ( $res as $row ) {
+			if ( isset( $seenFilenames[$row->filename] ) ) {
+				continue;
+			}
+			$seenFilenames[$row->filename] = true;
 
-		foreach ( $filenames as $filename ) {
-			$title = Title::makeTitle( NS_FILE, $filename );
-			$gallery->add( $title );
+			$filenamesByCategory[$row->category] ??= [];
+			$filenamesByCategory[$row->category][] = $row->filename;
 		}
 
-		$out->addHTML( $gallery->toHTML() );
+		// Maximum number of thumbnails to add.
+		$limitLeft = $this->getConfig()->get( 'RelatedImagesMaxSubcatImages' );
+
+		$html = '';
+		foreach ( $filenamesByCategory as $category => $filenames ) {
+			$gallery = ImageGalleryBase::factory( false, $this->getContext() );
+			$gallery->setHideBadImages( true );
+
+			foreach ( $filenames as $filename ) {
+				$title = Title::makeTitle( NS_FILE, $filename );
+				$gallery->add( $title );
+
+				if ( --$limitLeft <= 0 ) {
+					break;
+				}
+			}
+
+			$subcategoryTitle = Title::makeTitleSafe( NS_CATEGORY, $category );
+			$header = Linker::link( $subcategoryTitle, $subcategoryTitle->getText() );
+
+			$html .= Xml::tags( 'h3', null, $header );
+			$html .= $gallery->toHTML();
+
+			if ( $limitLeft <= 0 ) {
+				break;
+			}
+		}
+
+		$out->addHTML( Xml::tags( 'div', [ 'class' => 'mw-subcatimagesgallery-result' ], $html ) );
 	}
 }
