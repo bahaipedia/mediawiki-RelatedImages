@@ -14,7 +14,8 @@
 		"MediaWiki\\RelatedImages\\SpecialSubcatImagesGallery": "includes/specials/SpecialSubcatImagesGallery.php"
 	},
 	"ExtensionMessagesFiles": {
-		"RelatedImagesAlias": "RelatedImages.alias.php"
+		"RelatedImagesAlias": "RelatedImages.alias.php",
+		"RelatedImagesMagic": "RelatedImages.i18n.magic.php"
 	},
 	"HookHandlers": {
 		"main": {
@@ -29,7 +30,8 @@
 	},
 	"Hooks": {
 		"CategoryPageView": "main",
-		"ImagePageAfterImageLinks": "main"
+		"ImagePageAfterImageLinks": "main",
+		"ParserFirstCallInit": "main"
 	},
 	"MessagesDirs": {
 		"RelatedImages": [

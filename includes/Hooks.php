@@ -31,11 +31,13 @@ use FileRepo;
 use FormatJson;
 use ImagePage;
 use MediaWiki\Content\Renderer\ContentRenderer;
+use MediaWiki\Hook\ParserFirstCallInitHook;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Hook\CategoryPageViewHook;
 use MediaWiki\Page\Hook\ImagePageAfterImageLinksHook;
 use MediaWiki\Page\PageIdentity;
 use MediaWiki\Page\WikiPageFactory;
+use Parser;
 use ParserOptions;
 use RepoGroup;
 use RequestContext;
@@ -45,7 +47,7 @@ use Xml;
 /**
  * Hooks of Extension:RelatedImages.
  */
-class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook {
+class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook, ParserFirstCallInitHook {
 	/** @var ContentRenderer */
 	protected $contentRenderer;
 
@@ -136,10 +138,32 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook {
 			->caller( __METHOD__ )
 			->fetchFieldValues();
 
+		// If the File page has {{#relatedimages_priocat:Some_category_name}} syntax,
+		// then these categories are picked first.
+		$highPriorityCategories = $dbr->newSelectQueryBuilder()
+			->select( [ 'pp_propname' ] )
+			->from( 'page_props' )
+			->where( [
+				'pp_page' => $articleID,
+				'pp_propname ' . $dbr->buildLike( 'relatedimages.priocat.', $dbr->anyString() )
+			] )
+			->caller( __METHOD__ )
+			->fetchFieldValues();
+
+		$highPriorityCategories = array_map( static function ( $propname ) {
+			return preg_replace( '/^relatedimages\.priocat\./', '', $propname );
+		}, $highPriorityCategories );
+
 		// Check wikitext of $title for "which categories were added directly on this page, not via the template".
 		$directlyAdded = $this->getDirectlyAddedCategories( $title->toPageIdentity() );
 		$directlyAdded = array_intersect( $directlyAdded, $categoryNames ); // Exclude hidden categories
-		$categoryNames = array_merge( $directlyAdded, array_diff( $categoryNames, $directlyAdded ) );
+
+		// Priority of categories: 1) explicitly prioritized (even if hidden), 2) directly added, 3) the rest.
+		$categoryNames = array_values( array_unique( array_merge(
+			$highPriorityCategories,
+			$directlyAdded,
+			$categoryNames
+		) ) );
 
 		// Exclude $wgRelatedImagesIgnoredCategories from the list.
 		$categoryNames = array_diff( $categoryNames, $wgRelatedImagesIgnoredCategories );
@@ -322,5 +346,30 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook {
 		}
 
 		return $thumbsize;
+	}
+
+	/**
+	 * Register {{#relatedimages_priocat:}} syntax.
+	 *
+	 * @inheritDoc
+	 */
+	public function onParserFirstCallInit( $parser ) {
+		$parser->setFunctionHook( 'relatedimages_priocat',
+			[ $this, 'pfSetPriorityCategory' ] );
+	}
+
+	/**
+	 * Remember the parameter of {{#relatedimages_priocat:}} in page_props table.
+	 * @param Parser $parser
+	 * @param string $categoryName
+	 * @return string
+	 */
+	public function pfSetPriorityCategory( $parser, $categoryName ) {
+		$categoryName = trim( $categoryName );
+		if ( $categoryName ) {
+			$categoryName = ucfirst( strtr( $categoryName, '_', ' ' ) );
+			$parser->getOutput()->setPageProperty( 'relatedimages.priocat.' . $categoryName, '' );
+		}
+		return '';
 	}
 }
