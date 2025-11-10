@@ -367,7 +367,7 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook, Parse
 	public function pfSetPriorityCategory( $parser, $categoryName ) {
 		$categoryName = trim( $categoryName );
 		if ( $categoryName ) {
-			$categoryName = ucfirst( strtr( $categoryName, '_', ' ' ) );
+			$categoryName = ucfirst( strtr( $categoryName, ' ', '_' ) );
 			$parser->getOutput()->setPageProperty( 'relatedimages.priocat.' . $categoryName, '' );
 		}
 		return '';
