@@ -122,10 +122,6 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook, Parse
 		// 1. Find all non-hidden categories that contain the page $title
 		$qbCats = $dbr->newSelectQueryBuilder()
 			->from( 'categorylinks' )
-			->leftJoin( 'page_props', null, [
-				'pp_propname' => 'hiddencat',
-				'pp_page=page_id',
-			] )
 			->where( [
 				'cl_from' => $articleID,
 				'pp_propname IS NULL'
@@ -152,6 +148,12 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook, Parse
 					'page_title=linktarget.lt_title'
 				] );
 		}
+
+		// Now that the 'page' table is joined, we can join 'page_props' using 'page_id'
+		$qbCats->leftJoin( 'page_props', null, [
+			'pp_propname' => 'hiddencat',
+			'pp_page=page_id',
+		] );
 		
 		$categoryNames = $qbCats->fetchFieldValues();
 
