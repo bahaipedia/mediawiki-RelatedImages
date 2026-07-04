@@ -117,26 +117,20 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook, Parse
 		$title = $imagePage->getTitle();
 		$articleID = $title->getArticleID();
 
-		$dbr = $this->loadBalancer->getConnection( DB_REPLICA );
+		// 1. Find all non-hidden categories using MediaWiki API (avoids raw DB schema issues)
+		$parentCats = $title->getParentCategories();
+		$hiddenCats = $title->getHiddenCategories();
+		$visibleCats = array_diff_key( $parentCats, $hiddenCats );
 
-		// Find all non-hidden categories that contain the page $title.
-		$categoryNames = $dbr->newSelectQueryBuilder()
-			->select( [ 'cl_to' ] )
-			->from( 'categorylinks' )
-			->leftJoin( 'page', null, [
-				'page_namespace' => NS_CATEGORY,
-				'page_title=cl_to'
-			] )
-			->leftJoin( 'page_props', null, [
-				'pp_propname' => 'hiddencat',
-				'pp_page=page_id',
-			] )
-			->where( [
-				'cl_from' => $articleID,
-				'pp_propname IS NULL'
-			] )
-			->caller( __METHOD__ )
-			->fetchFieldValues();
+		$categoryNames = [];
+		foreach ( $visibleCats as $catTitleText => $sortkey ) {
+			$catTitleObj = \Title::newFromText( $catTitleText );
+			if ( $catTitleObj ) {
+				$categoryNames[] = $catTitleObj->getDBkey(); // Gets 'Category_name' without namespace
+			}
+		}
+
+		$dbr = $this->loadBalancer->getConnection( DB_REPLICA );
 
 		// If the File page has {{#relatedimages_priocat:Some_category_name}} syntax,
 		// then these categories are picked first.
@@ -172,24 +166,47 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook, Parse
 			return;
 		}
 
-		// Randomly choose up to $wgRelatedImagesMaxImagesPerCategory titles (not equal to $title) from $categoryNames.
-		$res = $dbr->newSelectQueryBuilder()
-			->select( [
-				'page_title AS filename',
-				'cl_to AS category'
-			] )
+		// 2. Randomly choose up to $wgRelatedImagesMaxImagesPerCategory titles from $categoryNames.
+		$qb = $dbr->newSelectQueryBuilder()
 			->from( 'categorylinks' )
 			->join( 'page', null, [
 				'page_id=cl_from',
 				'page_namespace' => NS_FILE
 			] )
 			->where( [
-				'cl_to' => $categoryNames,
 				'cl_from <> ' . $articleID
 			] )
 			->orderBy( 'cl_sortkey' )
-			->caller( __METHOD__ )
-			->fetchResultSet();
+			->caller( __METHOD__ );
+
+		// Handle MediaWiki 1.46+ schema changes where cl_to is dropped
+		if ( $dbr->fieldExists( 'categorylinks', 'cl_to', __METHOD__ ) ) {
+			$qb->select( [
+				'page_title AS filename',
+				'cl_to AS category'
+			] )->where( [
+				'cl_to' => $categoryNames
+			] );
+		} else {
+			// Fallback for normalized schema
+			$targetCol = $dbr->fieldExists( 'categorylinks', 'cl_target_id', __METHOD__ ) 
+				? 'cl_target_id' 
+				: 'cl_to_target_id';
+				
+			$qb->join( 'linktarget', null, [
+				"linktarget.lt_id = categorylinks.$targetCol"
+			] )
+			->select( [
+				'page_title AS filename',
+				'linktarget.lt_title AS category'
+			] )
+			->where( [
+				'linktarget.lt_title' => $categoryNames,
+				'linktarget.lt_namespace' => NS_CATEGORY
+			] );
+		}
+
+		$res = $qb->fetchResultSet();
 
 		// List of candidates to recommend (in the same order as $categoryNames):
 		// [ 'Category_name' => [ 'filename', ... ], ... ]
