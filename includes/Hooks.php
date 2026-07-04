@@ -117,20 +117,43 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook, Parse
 		$title = $imagePage->getTitle();
 		$articleID = $title->getArticleID();
 
-		// 1. Find all non-hidden categories using MediaWiki API (avoids raw DB schema issues)
-		$parentCats = $title->getParentCategories();
-		$hiddenCats = $title->getHiddenCategories();
-		$visibleCats = array_diff_key( $parentCats, $hiddenCats );
-
-		$categoryNames = [];
-		foreach ( $visibleCats as $catTitleText => $sortkey ) {
-			$catTitleObj = \Title::newFromText( $catTitleText );
-			if ( $catTitleObj ) {
-				$categoryNames[] = $catTitleObj->getDBkey(); // Gets 'Category_name' without namespace
-			}
-		}
-
 		$dbr = $this->loadBalancer->getConnection( DB_REPLICA );
+
+		// 1. Find all non-hidden categories that contain the page $title
+		$qbCats = $dbr->newSelectQueryBuilder()
+			->from( 'categorylinks' )
+			->leftJoin( 'page_props', null, [
+				'pp_propname' => 'hiddencat',
+				'pp_page=page_id',
+			] )
+			->where( [
+				'cl_from' => $articleID,
+				'pp_propname IS NULL'
+			] )
+			->caller( __METHOD__ );
+
+		if ( $dbr->fieldExists( 'categorylinks', 'cl_to', __METHOD__ ) ) {
+			$qbCats->select( [ 'cl_to' ] )
+				->leftJoin( 'page', null, [
+					'page_namespace' => NS_CATEGORY,
+					'page_title=cl_to'
+				] );
+		} else {
+			$targetCol = $dbr->fieldExists( 'categorylinks', 'cl_target_id', __METHOD__ ) 
+				? 'cl_target_id' 
+				: 'cl_to_target_id';
+				
+			$qbCats->join( 'linktarget', null, [
+					"linktarget.lt_id = categorylinks.$targetCol"
+				] )
+				->select( [ 'linktarget.lt_title' ] )
+				->leftJoin( 'page', null, [
+					'page_namespace' => NS_CATEGORY,
+					'page_title=linktarget.lt_title'
+				] );
+		}
+		
+		$categoryNames = $qbCats->fetchFieldValues();
 
 		// If the File page has {{#relatedimages_priocat:Some_category_name}} syntax,
 		// then these categories are picked first.
