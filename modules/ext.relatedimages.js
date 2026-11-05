@@ -5,6 +5,115 @@
 ( function () {
 	var api = new mw.Api();
 
+	function initCarousels( $container ) {
+		$container.find( '.mw-relatedimages-strip' ).each( function () {
+			var $strip = $( this ),
+				queue = [];
+
+			try {
+				queue = JSON.parse( $strip.attr( 'data-queue' ) || '[]' );
+			} catch ( e ) {
+				queue = [];
+			}
+			$strip.removeAttr( 'data-queue' );
+
+			var isFetching = false;
+
+			var $wrapper = $( '<div>' ).addClass( 'mw-relatedimages-carousel' );
+			var $btnLeft = $( '<button>' )
+				.attr( 'type', 'button' )
+				.addClass( 'mw-relatedimages-arrow mw-relatedimages-arrow-left' )
+				.text( '‹' )
+				.hide();
+			var $btnRight = $( '<button>' )
+				.attr( 'type', 'button' )
+				.addClass( 'mw-relatedimages-arrow mw-relatedimages-arrow-right' )
+				.text( '›' );
+
+			$strip.wrap( $wrapper );
+			$strip.before( $btnLeft );
+			$strip.after( $btnRight );
+
+			function updateArrows() {
+				var el = $strip[ 0 ];
+				if ( !el ) {
+					return;
+				}
+				var maxScroll = el.scrollWidth - el.clientWidth;
+				if ( el.scrollLeft > 5 ) {
+					$btnLeft.show();
+				} else {
+					$btnLeft.hide();
+				}
+
+				if ( el.scrollLeft < maxScroll - 5 || queue.length > 0 || isFetching ) {
+					$btnRight.show();
+				} else {
+					$btnRight.hide();
+				}
+			}
+
+			function prefetchIfNeeded() {
+				if ( isFetching || queue.length === 0 ) {
+					return;
+				}
+				var el = $strip[ 0 ];
+				var remainingScroll = el.scrollWidth - el.clientWidth - el.scrollLeft;
+
+				// Prefetch next batch of 5 when remaining off-screen width is less than ~1.5x container width
+				if ( remainingScroll < el.clientWidth * 1.5 ) {
+					isFetching = true;
+					var nextWikitext = queue.shift();
+
+					api.post( {
+						action: 'parse',
+						contentmodel: 'wikitext',
+						text: nextWikitext,
+						prop: 'text',
+						disableeditsection: '',
+						disablelimitreport: '',
+						disabletoc: ''
+					} ).done( function ( ret ) {
+						if ( ret.parse && ret.parse.text ) {
+							var $newNodes = $( '<div>' ).html( ret.parse.text[ '*' ] );
+							// Extract the links/images from the parsed <p> wrapper
+							var $items = $newNodes.find( 'a.image, span.mw-default-size, figure, img' ).first().parent().contents();
+							if ( $items.length ) {
+								$strip.append( $items );
+							} else {
+								$strip.append( $newNodes.contents() );
+							}
+						}
+					} ).always( function () {
+						isFetching = false;
+						updateArrows();
+						setTimeout( updateArrows, 200 );
+					} );
+				}
+			}
+
+			$btnLeft.on( 'click', function () {
+				var step = Math.max( 120, $strip[ 0 ].clientWidth * 0.75 );
+				$strip[ 0 ].scrollBy( { left: -step, behavior: 'smooth' } );
+			} );
+
+			$btnRight.on( 'click', function () {
+				var step = Math.max( 120, $strip[ 0 ].clientWidth * 0.75 );
+				$strip[ 0 ].scrollBy( { left: step, behavior: 'smooth' } );
+				prefetchIfNeeded();
+			} );
+
+			$strip.on( 'scroll', function () {
+				updateArrows();
+				prefetchIfNeeded();
+			} );
+
+			// Update arrows after images load so scrollWidth is accurate
+			$strip.find( 'img' ).on( 'load', updateArrows );
+			setTimeout( updateArrows, 100 );
+		} );
+	}
+
 	// Asynchronously parse wikitext of RelatedImages widget (generating thumbnails),
 	// display it after they are generated.
 	function loadTab( $tab ) {
@@ -55,6 +164,7 @@
 
 			$loading.replaceWith( $parsed );
 			$widget.show();
+			initCarousels( $parsed );
 		} ).fail( function ( code, ret ) {
 			console.log( 'RelatedImages: ajax error: ', JSON.stringify( ret ) );
 		} );
