@@ -24,4 +24,66 @@
 
 #mw-related-images-wrapper {
 	width: 300px;
+	max-width: 300px;
+}
+
+.mw-relatedimages-carousel {
+	position: relative;
+	width: 100%;
+	overflow: hidden;
+}
+
+.mw-relatedimages-strip {
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	overflow-x: auto;
+	scrollbar-width: none; /* Firefox */
+	-ms-overflow-style: none; /* IE/Edge */
+	white-space: nowrap;
+}
+
+.mw-relatedimages-strip::-webkit-scrollbar {
+	display: none; /* Chrome/Safari */
+}
+
+.mw-relatedimages-strip p {
+	display: contents;
+	margin: 0;
+}
+
+.mw-relatedimages-strip a,
+.mw-relatedimages-strip span {
+	flex: 0 0 auto;
+}
+
+.mw-relatedimages-arrow {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	z-index: 2;
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	border: none;
+	border-radius: 3px;
+	width: 24px;
+	height: 40px;
+	font-size: 20px;
+	line-height: 36px;
+	text-align: center;
+	cursor: pointer;
+	padding: 0;
+	user-select: none;
+}
+
+.mw-relatedimages-arrow:hover {
+	background: rgba(0, 0, 0, 0.85);
+}
+
+.mw-relatedimages-arrow-left {
+	left: 2px;
+}
+
+.mw-relatedimages-arrow-right {
+	right: 2px;
 }
