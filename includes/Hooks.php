@@ -251,7 +251,7 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook, Parse
 				continue;
 			}
 
-			if ( count( $filenamesPerCategory[$row->category] ) < $wgRelatedImagesMaxImagesPerCategory ) {
+			if ( count( $filenamesPerCategory[$row->category] ) < 100 ) {
 				$filenamesPerCategory[$row->category][] = $row->filename;
 				$usedFilenames[$row->filename] = true;
 			}
@@ -278,6 +278,7 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook, Parse
 
 		$limitOnThisTab = max( 1, $wgRelatedImagesMaxCategories );
 		$limitForExtraTabs = max( 1, $wgRelatedImagesMoreCategoriesPerClick );
+		$batchSize = max( 1, $wgRelatedImagesMaxImagesPerCategory );
 
 		foreach ( $filenamesPerCategory as $category => $filenames ) {
 			if ( !$filenames ) {
@@ -290,14 +291,34 @@ class Hooks implements CategoryPageViewHook, ImagePageAfterImageLinksHook, Parse
 				continue;
 			}
 
-			$categoryName = strtr( $category, '_', ' ' );
-			$tabWikitext .= "\n===== [[:Category:$categoryName|$categoryName]] =====\n";
-
+			$validWikitextItems = [];
 			foreach ( $filenames as $filename ) {
 				if ( isset( $found[$filename] ) ) {
-					$tabWikitext .= "[[File:$filename|$thumbsize]]";
+					$validWikitextItems[] = "[[File:$filename|$thumbsize]]";
 				}
 			}
+
+			if ( !$validWikitextItems ) {
+				continue;
+			}
+
+			$initialBatch = array_slice( $validWikitextItems, 0, $batchSize );
+			$remainingItems = array_slice( $validWikitextItems, $batchSize );
+			$remainingChunks = array_chunk( $remainingItems, $batchSize );
+			$queueAttr = FormatJson::encode( array_map( static function ( $chunk ) {
+				return implode( '', $chunk );
+			}, $remainingChunks ) );
+
+			$categoryName = strtr( $category, '_', ' ' );
+			$tabWikitext .= "\n===== [[:Category:$categoryName|$categoryName]] =====\n";
+			$tabWikitext .= Xml::tags(
+				'div',
+				[
+					'class' => 'mw-relatedimages-strip',
+					'data-queue' => $queueAttr
+				],
+				implode( '', $initialBatch )
+			);
 
 			if ( ++$numCategoriesOnThisTab >= $limitOnThisTab ) {
 				/*
